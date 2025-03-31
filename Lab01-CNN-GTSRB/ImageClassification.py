@@ -1,102 +1,105 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
-import torch.optim as optim
+import time
 
-
-# 数据加载
-class GTSRBDataset(Dataset):
-    def __init__(self):
-        # 添加数据集的初始化内容
-        pass
-
-    def __getitem__(self, index):
-        # 添加getitem函数的相关内容
-        pass
-
-    def __len__(self):
-        # 添加len函数的相关内容
-        pass
-
-
-# 构建模型
+# construct CNN model
 class Net(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
-        # 定义模型的网络结构
-        pass
+        super().__init__()
+
+        self.layer1 = nn.Sequential()
+        self.layer1.add_module("conv", nn.Conv2d(in_channels = 3, 
+                                                 out_channels = 32, 
+                                                 kernel_size = 5, 
+                                                 stride = 1, 
+                                                 padding = 2))
+        self.layer1.add_module('relu', nn.ReLU())
+        self.layer1.add_module('pool', nn.MaxPool2d(kernel_size = 2, stride = 2))
+
+        self.layer2 = nn.Sequential()
+        self.layer2.add_module("conv", nn.Conv2d(in_channels = 32, 
+                                                 out_channels = 64, 
+                                                 kernel_size = 5, 
+                                                 stride = 1, 
+                                                 padding = 2))
+        self.layer2.add_module('relu', nn.ReLU())
+        self.layer2.add_module('pool', nn.MaxPool2d(kernel_size = 2, stride = 2))
+
+        self.dropout = nn.Dropout2d(p = 0.5)
+        self.flatten = nn.Flatten(start_dim = 1, end_dim = 3)
+
+        self.fc1 = nn.Linear(in_features = 7*7*64, out_features = 1000)
+
+        self.fc2 = nn.Linear(in_features = 1000, out_features = 43)
 
     def forward(self, x):
-        # 定义模型前向传播的内容
-        pass
+        x = self.layer1(x)
+        x = self.layer2(x)
+        # print(x.shape)
+        x = self.flatten(x)
+        x = self.dropout(x)
+        
+        x = self.fc1(x)
+        x = self.fc2(x)
+        return x
 
 
-# 定义 train 函数
-def train():
-    # 参数设置
-    epoch_num = 10 #训练轮次数
-    val_num = 2 #训练几轮验证一次
+# define training function
+def train(x_train, y_train, x_test, y_test, model,
+          loss_function, optimizer,
+          BATCH_SIZE:int = 64, EPOCH_NUM:int = 40, VAL_NUM:int = 2,
+          output_log = False):
+    
+    train_N = x_train.shape[0]
+    loss_rate = []
+    acc_rate = []
 
-    for epoch in range(epoch_num): 
-        for i, data in enumerate(train_loader, 0):
-            images, labels = data
-            # Forward
+    begin = time.time()
+    for epoch in range(1,EPOCH_NUM+1):
 
-            # Backward
+        batchindex = list(range(int(train_N / BATCH_SIZE)))
+        from random import shuffle
+        shuffle(batchindex)
 
-            # Update
+        for i in batchindex:
+            batch_x = x_train[i*BATCH_SIZE: (i+1)*BATCH_SIZE]
+            batch_y = y_train[i*BATCH_SIZE: (i+1)*BATCH_SIZE]
 
-            # 可以从训练集中抽取一部分作为验证集，在训练过程中进行验证
-            if epoch % val_num == 0:
-                validation()
+            y_hat = model(batch_x)
+            loss = loss_function(y_hat, batch_y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        
+        loss_rate.append(loss.item())
+        
+        # test
+        if epoch % VAL_NUM == 0:
+            end = time.time()
+            y_hat = model(x_test)
+            y_hat = torch.max(y_hat, 1)[1].data.squeeze()
+            acc = torch.sum(y_hat == y_test).float() / y_test.shape[0]
+            acc_rate.append(acc.item())
 
-    print('Finished Training!')
+            if output_log:
+                """
+                from logging import basicConfig, DEBUG
+                basicConfig(level = DEBUG, filename = 'train.log', filemode='w',
+                    format=f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}] epoch {epoch} | loss:{loss:.4f} | acc:{acc:.4f} | time:{(end-begin):.2f}s"
+                    )
+                """
+            else:
+                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}] epoch {epoch} | loss:{loss:.4f} | acc:{acc:.4f} | time:{(end-begin):.2f}s")
+            
+            begin = time.time()
+    
+    print("Finished Training! BATCH_SIZE={}, EPOCH={}, VAL_NUM={}".format(BATCH_SIZE, EPOCH_NUM, VAL_NUM))
+    return loss_rate, acc_rate
 
-
-# 定义 validation 函数
-def validation():
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for data in dev_loader:
-            images, labels = data
-            # 验证部分的内容
-            pass
-
-    print("验证集数据总量：", total, "预测正确的数量：", correct)
-    print("当前模型在验证集上的准确率为：", correct / total)
-
-
-# 定义 test 函数
-def test():
-    # 将预测结果写入txt文件中
-    pass
-
-
-if __name__ == "__main__":
-    # 构建数据集
-    train_set = GTSRBDataset()
-    dev_set = GTSRBDataset()
-    test_set = GTSRBDataset()
-
-    # 构建数据加载器
-    train_loader = DataLoader(dataset=train_set)
-    dev_loader = DataLoader(dataset=dev_set)
-    test_loader = DataLoader(dataset=test_set)
-
-    # 初始化模型对象
-    net = Net()
-
-    # 定义损失函数
-    criterion = None
-
-    # 定义优化器
-    optimizer = None
-
-    # 模型训练
-    train()
-
-    # 对模型进行测试，并生成预测结果
-    test()
+def cnn(x_train, y_train, x_test, y_test):
+    BATCH_SIZE = 100
+    model = Net()
+    loss_function = nn.CrossEntropyLoss() # 多分类任务
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    train(x_train, y_train, x_test, y_test,
+          BATCH_SIZE, model, loss_function, optimizer)

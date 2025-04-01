@@ -1,6 +1,6 @@
+# comlpete
 import torch
 import torch.nn as nn
-import time
 
 # construct CNN model
 class Net(nn.Module):
@@ -45,6 +45,8 @@ class Net(nn.Module):
 
 
 # define training function
+import time
+from random import shuffle
 def train(x_train, y_train, x_test, y_test, model,
           loss_function, optimizer,
           BATCH_SIZE:int = 64, EPOCH_NUM:int = 40, VAL_NUM:int = 2,
@@ -54,14 +56,13 @@ def train(x_train, y_train, x_test, y_test, model,
     loss_rate = []
     acc_rate = []
 
-    begin = time.time()
+    _begin = time.time()
     for epoch in range(1,EPOCH_NUM+1):
 
-        batchindex = list(range(int(train_N / BATCH_SIZE)))
-        from random import shuffle
-        shuffle(batchindex)
+        _batchindex = list(range(int(train_N / BATCH_SIZE)))
+        shuffle(_batchindex)
 
-        for i in batchindex:
+        for i in _batchindex:
             batch_x = x_train[i*BATCH_SIZE: (i+1)*BATCH_SIZE]
             batch_y = y_train[i*BATCH_SIZE: (i+1)*BATCH_SIZE]
 
@@ -75,7 +76,7 @@ def train(x_train, y_train, x_test, y_test, model,
         
         # test
         if epoch % VAL_NUM == 0:
-            end = time.time()
+            _end = time.time()
             y_hat = model(x_test)
             y_hat = torch.max(y_hat, 1)[1].data.squeeze()
             acc = torch.sum(y_hat == y_test).float() / y_test.shape[0]
@@ -85,13 +86,13 @@ def train(x_train, y_train, x_test, y_test, model,
                 """
                 from logging import basicConfig, DEBUG
                 basicConfig(level = DEBUG, filename = 'train.log', filemode='w',
-                    format=f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}] epoch {epoch} | loss:{loss:.4f} | acc:{acc:.4f} | time:{(end-begin):.2f}s"
+                    format=f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}] epoch {epoch} | loss:{loss:.4f} | acc:{acc:.4f} | time:{(_end-_begin):.2f}s"
                     )
                 """
             else:
-                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}] epoch {epoch} | loss:{loss:.4f} | acc:{acc:.4f} | time:{(end-begin):.2f}s")
+                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}] epoch {epoch} | loss:{loss:.4f} | acc:{acc:.4f} | time:{(_end-_begin):.2f}s")
             
-            begin = time.time()
+            _begin = time.time()
     
     print("Finished Training! BATCH_SIZE={}, EPOCH={}, VAL_NUM={}".format(BATCH_SIZE, EPOCH_NUM, VAL_NUM))
     return loss_rate, acc_rate

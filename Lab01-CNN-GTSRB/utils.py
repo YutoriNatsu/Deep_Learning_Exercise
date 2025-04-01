@@ -1,8 +1,10 @@
+# update Roi cropper
 import os
-from PIL import Image
-import pandas as pd
-import numpy as np
 import torch
+import numpy as np
+import pandas as pd
+
+from PIL import Image
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 
@@ -11,6 +13,8 @@ def loadTrainData(showExample=False):
     data = []
     label = []
     classes = 43
+
+    image_size = (60,60)
     project_path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "\\GTSRB"
 
     for i in range(classes):
@@ -19,18 +23,62 @@ def loadTrainData(showExample=False):
         # print(path)
         for a in images:
             try:
-                image = Image.open(path + "\\" + a)
-                image = image.resize((30,30))
-                image = np.array(image)
-                data.append(image)
+                _image = Image.open(path + "\\" + a)
+                _image = _image.resize(image_size)
+                _image = np.array(_image)
+                data.append(_image)
             except:
-                csv = pd.read_csv(path + "\\" + a, sep=';', encoding="utf-8")
-                label = label + csv['ClassId'].values.tolist()
+                _csv = pd.read_csv(path + "\\" + a, sep=';', encoding="utf-8")
+                label = label + _csv['ClassId'].values.tolist()
 
-    print("data={}, label={}, trainingset={}".format(len(data), len(label), len(csv)))
+    print("data={}, label={}, trainingset={}".format(len(data), len(label), len(_csv)))
 
     if showExample:
-        csv.head()
+        _csv.head()
+        plt.imshow(data[0]), plt.title("Example:label[{}]:".format(label[0]))
+    
+    return data, label
+
+def loadTrainData_Roi(showExample=False):
+    data = []
+    label = []
+    classes = 43
+
+    image_size = (60,60)
+    project_path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "\\GTSRB"
+    _average_size = [0,0]
+    
+    for i in range(classes):
+        path = os.path.join(project_path, "Training\\{:05d}".format(i))
+        images = os.listdir(path)
+        
+        _csv = pd.read_csv(path + "\\" + images[len(images)-1], sep=';', encoding="utf-8")
+        label = label + _csv['ClassId'].values.tolist()
+        _Roi_X1 = _csv['Roi.X1'].values.tolist()
+        _Roi_Y1 = _csv['Roi.Y1'].values.tolist()
+        _Roi_X2 = _csv['Roi.X2'].values.tolist()
+        _Roi_Y2 = _csv['Roi.Y2'].values.tolist()
+        _sum_size = [0,0]
+
+        # print(path)
+        for i in range(len(images)):
+            try:
+                _image = Image.open(path + "\\" + images[i])
+                _image = _image.crop(_Roi_X1[i],_Roi_Y1[i],_Roi_X2[i],_Roi_Y2[i])
+                _sum_size[0] = _sum_size[0] + _Roi_X2[i] - _Roi_X1[i]
+                _sum_size[1] = _sum_size[1] + _Roi_Y2[i] - _Roi_Y1[i]
+
+                _image = _image.resize(image_size)
+                _image = np.array(_image)
+                data.append(_image)
+            except:
+                _average_size[0] = (_average_size[0] + _sum_size[0]/len(_sum_size[0]))/2
+                _average_size[1] = (_average_size[1] + _sum_size[1]/len(_sum_size[1]))/2
+
+    print("data={}, label={}, trainingset={}, average_size={}".format(len(data), len(label), len(_csv), _average_size))
+
+    if showExample:
+        _csv.head()
         plt.imshow(data[0]), plt.title("Example:label[{}]:".format(label[0]))
     
     return data, label
@@ -63,19 +111,58 @@ def loadTestData(showExample=False):
     images = os.listdir(path)
     for a in images:
         try:
-            image = Image.open(path + "\\" + a)
-            image = image.resize((30,30))
-            image = np.array(image)
-            test.append(image)
+            _image = Image.open(path + "\\" + a)
+            _image = _image.resize((30,30))
+            _image = np.array(_image)
+            test.append(_image)
         except:
-            csv = pd.read_csv(path + "\\" + a, sep=';', encoding="utf-8")
+            _csv = pd.read_csv(path + "\\" + a, sep=';', encoding="utf-8")
 
     print("test images={}".format(len(test)))
     test = torch.FloatTensor(test)
     test = test.permute(0, 3, 1, 2)
 
     if showExample:
-        csv.head()
+        _csv.head()
+        plt.imshow(test[0]), plt.title("Example: test No.1:")
+    
+    return test
+
+def loadTestData_Roi(showExample=False):
+    test = []
+    path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "\\GTSRB\\Final_Test\\Images"
+    images = os.listdir(path)
+
+    image_size = (60,60)
+    _average_size = [0,0]
+
+    _csv = pd.read_csv(path + "\\" + images[len(images)-1], sep=';', encoding="utf-8")
+    label = label + _csv['ClassId'].values.tolist()
+    _Roi_X1 = _csv['Roi.X1'].values.tolist()
+    _Roi_Y1 = _csv['Roi.Y1'].values.tolist()
+    _Roi_X2 = _csv['Roi.X2'].values.tolist()
+    _Roi_Y2 = _csv['Roi.Y2'].values.tolist()
+    
+    for i in range(len(images)):
+        try:
+            _image = Image.open(path + "\\" + images[i])
+            _image = _image.crop(_Roi_X1[i],_Roi_Y1[i],_Roi_X2[i],_Roi_Y2[i])
+            _average_size[0] = _average_size[0] + _Roi_X2[i] - _Roi_X1[i]
+            _average_size[1] = _average_size[1] + _Roi_Y2[i] - _Roi_Y1[i]
+
+            _image = _image.resize(image_size)
+            _image = np.array(_image)
+            test.append(_image)
+        except:
+            _average_size[0] = _average_size[0]/len(_average_size[0])
+            _average_size[1] = _average_size[1]/len(_average_size[1])
+    
+    print("test images={}, average_size={}".format(len(test), _average_size))
+    test = torch.FloatTensor(test)
+    test = test.permute(0, 3, 1, 2)
+
+    if showExample:
+        _csv.head()
         plt.imshow(test[0]), plt.title("Example: test No.1:")
     
     return test
@@ -99,16 +186,16 @@ def predict(model, test, showExample=False):
     return None
 
 def illustrate(loss:list, acc:list, saveFig:str=""):
-    x1 = []
-    x2 = []
+    _x1 = []
+    _x2 = []
     for i in range(1,len(loss)+1):
-        x1.append(i)
-        if i % (len(loss)/len(acc)) == 0: x2.append(i)
+        _x1.append(i)
+        if i % (len(loss)/len(acc)) == 0: _x2.append(i)
 
     plt.figure(figsize=(20,10))
     ax=plt.axes()
-    ax.plot(x1, loss, marker='x', linestyle = ':', lw=2, label='q=8')
-    ax.plot(x2, acc, marker='o', linestyle = '-', lw=2, label='q=12')
+    ax.plot(_x1, loss, marker='x', linestyle = ':', lw=2, label='q=8')
+    ax.plot(_x2, acc, marker='o', linestyle = '-', lw=2, label='q=12')
     if len(saveFig)!=0: plt.savefig(saveFig)
 
     plt.show()

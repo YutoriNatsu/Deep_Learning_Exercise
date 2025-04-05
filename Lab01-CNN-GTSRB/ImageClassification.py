@@ -29,7 +29,7 @@ class Net(nn.Module):
         self.flatten = nn.Flatten(start_dim = 1, end_dim = 3)
 
         self.fc1 = nn.Linear(in_features = 4*image_size[0]*image_size[1], out_features = 1000)
-
+        self.relu = nn.ReLU()
         self.fc2 = nn.Linear(in_features = 1000, out_features = classes)
 
     def forward(self, x):
@@ -42,6 +42,7 @@ class Net(nn.Module):
         # print("flatten:{}".format(x.shape))
 
         x = self.fc1(x)
+        x = self.relu(x)
         x = self.fc2(x)
         # print("output:{}".format(x.shape))
 

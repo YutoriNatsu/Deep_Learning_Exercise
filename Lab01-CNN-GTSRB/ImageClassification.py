@@ -71,7 +71,7 @@ def train(x_train, y_train, x_test, y_test, model,
     # torch.autograd.set_detect_anomaly(True)
     _begin = time.time()
     for epoch in range(1,EPOCH_NUM+1):
-        adjust_learning_rate(learning_rate=0.001,
+        adjust_learning_rate(learning_rate=0.0001,
                              learning_rate_decay=0.98,
                              optimizer=optimizer, epoch=epoch)
         _batchindex = list(range(int(train_N / BATCH_SIZE)))

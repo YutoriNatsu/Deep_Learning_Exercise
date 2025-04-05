@@ -4,11 +4,11 @@ import torch.nn as nn
 
 # construct CNN model
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, image_size:tuple=(28,28), img_channels=3, classes=43):
         super().__init__()
 
         self.layer1 = nn.Sequential()
-        self.layer1.add_module("conv", nn.Conv2d(in_channels = 3, 
+        self.layer1.add_module("conv", nn.Conv2d(in_channels = img_channels, 
                                                  out_channels = 32, 
                                                  kernel_size = 5, 
                                                  stride = 1, 
@@ -28,19 +28,23 @@ class Net(nn.Module):
         self.dropout = nn.Dropout2d(p = 0.5)
         self.flatten = nn.Flatten(start_dim = 1, end_dim = 3)
 
-        self.fc1 = nn.Linear(in_features = 7*7*64, out_features = 1000)
+        self.fc1 = nn.Linear(in_features = 4*image_size[0]*image_size[1], out_features = 1000)
 
-        self.fc2 = nn.Linear(in_features = 1000, out_features = 43)
+        self.fc2 = nn.Linear(in_features = 1000, out_features = classes)
 
     def forward(self, x):
         x = self.layer1(x)
         x = self.layer2(x)
-        # print(x.shape)
+        # print("conv:{}".format(x.shape))
+
         x = self.flatten(x)
         x = self.dropout(x)
-        
+        # print("flatten:{}".format(x.shape))
+
         x = self.fc1(x)
         x = self.fc2(x)
+        # print("output:{}".format(x.shape))
+
         return x
 
 
@@ -56,6 +60,7 @@ def train(x_train, y_train, x_test, y_test, model,
     loss_rate = []
     acc_rate = []
 
+    # torch.autograd.set_detect_anomaly(True)
     _begin = time.time()
     for epoch in range(1,EPOCH_NUM+1):
 
@@ -69,6 +74,8 @@ def train(x_train, y_train, x_test, y_test, model,
             y_hat = model(batch_x)
             loss = loss_function(y_hat, batch_y)
             optimizer.zero_grad()
+            
+            # with torch.autograd.detect_anomaly(): loss.backward()
             loss.backward()
             optimizer.step()
         

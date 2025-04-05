@@ -1,6 +1,7 @@
-# update Roi cropper
+# update Roi_cropper
 import os
 import torch
+import random
 import numpy as np
 import pandas as pd
 
@@ -9,12 +10,10 @@ from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 
 # read the image file
-def loadTrainData(showExample=False):
+def loadTrainData(image_size:tuple=(28,28), showExample=False):
     data = []
     label = []
     classes = 43
-
-    image_size = (60,60)
     project_path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "\\GTSRB"
 
     for i in range(classes):
@@ -39,12 +38,10 @@ def loadTrainData(showExample=False):
     
     return data, label
 
-def loadTrainData_Roi(showExample=False):
+def loadTrainData_Roi(image_size:tuple=(28,28), showExample=False):
     data = []
     label = []
     classes = 43
-
-    image_size = (60,60)
     project_path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "\\GTSRB"
     _average_size = [0,0]
     
@@ -64,7 +61,7 @@ def loadTrainData_Roi(showExample=False):
         for i in range(len(images)):
             try:
                 _image = Image.open(path + "\\" + images[i])
-                _image = _image.crop(_Roi_X1[i],_Roi_Y1[i],_Roi_X2[i],_Roi_Y2[i])
+                _image = _image.crop((_Roi_X1[i],_Roi_Y1[i],_Roi_X2[i],_Roi_Y2[i]))
                 _sum_size[0] = _sum_size[0] + _Roi_X2[i] - _Roi_X1[i]
                 _sum_size[1] = _sum_size[1] + _Roi_Y2[i] - _Roi_Y1[i]
 
@@ -72,8 +69,8 @@ def loadTrainData_Roi(showExample=False):
                 _image = np.array(_image)
                 data.append(_image)
             except:
-                _average_size[0] = (_average_size[0] + _sum_size[0]/len(_sum_size[0]))/2
-                _average_size[1] = (_average_size[1] + _sum_size[1]/len(_sum_size[1]))/2
+                _average_size[0] = (_average_size[0] + _sum_size[0]/len(_sum_size))/2
+                _average_size[1] = (_average_size[1] + _sum_size[1]/len(_sum_size))/2
 
     print("data={}, label={}, trainingset={}, average_size={}".format(len(data), len(label), len(_csv), _average_size))
 
@@ -84,6 +81,13 @@ def loadTrainData_Roi(showExample=False):
     return data, label
 
 def seperateDataset(data:list, label:list):
+    # shuffle the dataset
+    randnum = random.randint(0,100)
+    random.seed(randnum)
+    random.shuffle(data)
+    random.seed(randnum)
+    random.shuffle(label)
+
     # Converting lists into numpy arrays
     data = np.array(data)
     label = np.array(label)
@@ -105,14 +109,14 @@ def seperateDataset(data:list, label:list):
 
     return X_train, X_test, y_train, y_test
 
-def loadTestData(showExample=False):
+def loadTestData(image_size:tuple=(28,28), showExample=False):
     test = []
     path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "\\GTSRB\\Final_Test\\Images"
     images = os.listdir(path)
     for a in images:
         try:
             _image = Image.open(path + "\\" + a)
-            _image = _image.resize((30,30))
+            _image = _image.resize(image_size)
             _image = np.array(_image)
             test.append(_image)
         except:
@@ -128,12 +132,10 @@ def loadTestData(showExample=False):
     
     return test
 
-def loadTestData_Roi(showExample=False):
+def loadTestData_Roi(image_size:tuple=(28,28), showExample=False):
     test = []
     path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "\\GTSRB\\Final_Test\\Images"
     images = os.listdir(path)
-
-    image_size = (60,60)
     _average_size = [0,0]
 
     _csv = pd.read_csv(path + "\\" + images[len(images)-1], sep=';', encoding="utf-8")
@@ -146,7 +148,7 @@ def loadTestData_Roi(showExample=False):
     for i in range(len(images)):
         try:
             _image = Image.open(path + "\\" + images[i])
-            _image = _image.crop(_Roi_X1[i],_Roi_Y1[i],_Roi_X2[i],_Roi_Y2[i])
+            _image = _image.crop((_Roi_X1[i],_Roi_Y1[i],_Roi_X2[i],_Roi_Y2[i]))
             _average_size[0] = _average_size[0] + _Roi_X2[i] - _Roi_X1[i]
             _average_size[1] = _average_size[1] + _Roi_Y2[i] - _Roi_Y1[i]
 
@@ -154,8 +156,8 @@ def loadTestData_Roi(showExample=False):
             _image = np.array(_image)
             test.append(_image)
         except:
-            _average_size[0] = _average_size[0]/len(_average_size[0])
-            _average_size[1] = _average_size[1]/len(_average_size[1])
+            _average_size[0] = _average_size[0]/len(_average_size)
+            _average_size[1] = _average_size[1]/len(_average_size)
     
     print("test images={}, average_size={}".format(len(test), _average_size))
     test = torch.FloatTensor(test)

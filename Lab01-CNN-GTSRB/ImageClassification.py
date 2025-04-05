@@ -47,6 +47,14 @@ class Net(nn.Module):
 
         return x
 
+def adjust_learning_rate(learning_rate, learning_rate_decay, optimizer, epoch):
+    """Sets the learning rate to the initial LR multiplied by learning_rate_decay(set 0.98, usually) every epoch"""
+    learning_rate = learning_rate * (learning_rate_decay ** epoch)
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = learning_rate
+
+    return learning_rate
 
 # define training function
 import time
@@ -63,7 +71,9 @@ def train(x_train, y_train, x_test, y_test, model,
     # torch.autograd.set_detect_anomaly(True)
     _begin = time.time()
     for epoch in range(1,EPOCH_NUM+1):
-
+        adjust_learning_rate(learning_rate=0.001,
+                             learning_rate_decay=0.98,
+                             optimizer=optimizer, epoch=epoch)
         _batchindex = list(range(int(train_N / BATCH_SIZE)))
         shuffle(_batchindex)
 

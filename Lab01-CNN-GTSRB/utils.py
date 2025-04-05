@@ -139,7 +139,6 @@ def loadTestData_Roi(image_size:tuple=(28,28), showExample=False):
     _average_size = [0,0]
 
     _csv = pd.read_csv(path + "\\" + images[len(images)-1], sep=';', encoding="utf-8")
-    label = label + _csv['ClassId'].values.tolist()
     _Roi_X1 = _csv['Roi.X1'].values.tolist()
     _Roi_Y1 = _csv['Roi.Y1'].values.tolist()
     _Roi_X2 = _csv['Roi.X2'].values.tolist()
@@ -160,13 +159,13 @@ def loadTestData_Roi(image_size:tuple=(28,28), showExample=False):
             _average_size[1] = _average_size[1]/len(_average_size)
     
     print("test images={}, average_size={}".format(len(test), _average_size))
-    test = torch.FloatTensor(test)
-    test = test.permute(0, 3, 1, 2)
 
     if showExample:
         _csv.head()
         plt.imshow(test[0]), plt.title("Example: test No.1:")
-    
+
+    test = torch.FloatTensor(test)
+    test = test.permute(0, 3, 1, 2)
     return test
 
 def predict(model, test, showExample=False):

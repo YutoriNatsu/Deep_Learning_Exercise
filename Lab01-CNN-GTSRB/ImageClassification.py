@@ -119,6 +119,6 @@ def cnn(x_train, y_train, x_test, y_test):
     BATCH_SIZE = 100
     model = Net()
     loss_function = nn.CrossEntropyLoss() # 多分类任务
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     train(x_train, y_train, x_test, y_test,
           BATCH_SIZE, model, loss_function, optimizer)

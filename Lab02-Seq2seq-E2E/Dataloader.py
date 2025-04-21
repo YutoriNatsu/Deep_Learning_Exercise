@@ -104,7 +104,7 @@ class E2EDataset(Dataset):
             self.ref = _df['ref'].values.tolist()
 
             if field_tokenizer is None or tokenizer is None: 
-                raise ValueError("field tokenizer and tokenizer must not be None") 
+                raise ValueError("failed tokenizer and tokenizer must not be None") 
             self.field_tokenizer = field_tokenizer 
             self.key_num = len(self.field_tokenizer) 
             self.tokenizer = tokenizer 
@@ -116,7 +116,7 @@ class E2EDataset(Dataset):
             self.ref = ['' for _ in range(len(self.mr))]
 
             if field_tokenizer is None or tokenizer is None: 
-                raise ValueError("field tokenizer and tokenizer must not be None") 
+                raise ValueError("failed tokenizer and tokenizer must not be None") 
             self.field_tokenizer = field_tokenizer 
             self.key_num = len(self.field_tokenizer) 
             self.tokenizer = tokenizer 

@@ -154,5 +154,4 @@ class E2EModel(nn.Module):
             dec_input_var = (Variable(torch.LongTensor([curr_token_id]))).to(self.device)   
             curr_dec_idx += 1 
         return dec_ids, attn_w 
-
-
+    

@@ -1,8 +1,8 @@
 NAME_TOKEN = '[NAME]'
 NEAR_TOKEN = '[NEAR]'
 
-BOS_ID = -1
-EOS_ID = -2
+BOS_ID = 1
+EOS_ID = 2
 PAD_ID = 0
 
 from torch import device as torch_device

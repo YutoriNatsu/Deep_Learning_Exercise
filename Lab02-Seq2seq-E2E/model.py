@@ -92,6 +92,7 @@ class E2EModel(nn.Module):
         self.cfg = cfg 
         self.src_vocab_size = src_vocab_size 
         self.tgt_vocab_size = tgt_vocab_size 
+        
         # 构建词嵌入层 
         self.embedding_mat = nn.Embedding(src_vocab_size, cfg.embedding_dim, padding_idx=PAD_ID) 
         self.embedding_dropout_layer = nn.Dropout(cfg.embedding_dropout) 

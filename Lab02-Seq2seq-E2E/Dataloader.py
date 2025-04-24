@@ -40,15 +40,15 @@ class Tokenizer:
         id_string.append(self.token2id('[EOS]')) 
         return id_string
     
-    def decode(self, id_string:list) -> list: 
+    def decode(self, id_string:list) -> str: 
         spec_tokens = {'[BOS]', '[EOS]', '[PAD]'}  
         token_string = [] 
         for _token_id in id_string:
             _token = self.id2token(_token_id) 
             if _token in spec_tokens: continue 
             token_string.append(_token) 
-        return token_string
-        # return ' '.join(tokens) 
+        # return token_string
+        return ' '.join(token_string) 
 
 
 import pandas as pd
@@ -194,6 +194,7 @@ class E2EDataset(Dataset):
                 _value = _item[1] 
                 _key_idx = self.field_tokenizer[_key] 
 
+                "去掉去词化步骤会对结果有影响吗? 对比实验一下:" 
                 if _key == 'name': 
                     mr_data[_key_idx] = NAME_TOKEN 
                     lex[0] = _value
@@ -207,11 +208,10 @@ class E2EDataset(Dataset):
             ref_data = self.ref[_index] 
             if ref_data == '': ref_data = [''] # 如果是测试集(没有ref)则不做处理 
             else: 
-                if lex[0]: 
-                    ref_data = ref_data.replace(lex[0], NAME_TOKEN) 
-                if lex[1]: 
-                    ref_data = ref_data.replace(lex[1], NEAR_TOKEN) 
-                ref_data = list(map(lambda x: re_split(r"([.,!?\"':;)(])", x)[0], ref_data.split())) # 使用re的split去除数据中的标点符号，并按照空格分词
+                if lex[0]: ref_data = ref_data.replace(lex[0], NAME_TOKEN) 
+                if lex[1]: ref_data = ref_data.replace(lex[1], NEAR_TOKEN) 
+                ref_data = list(map(lambda x: re_split(r"([.,!?\"':;)(])", x)[0], ref_data.split())) 
+                # 使用re的split去除数据中的标点符号，并按照空格分词
         
             self.raw_data_x.append(mr_data) 
             self.raw_data_y.append(ref_data) 
@@ -221,8 +221,7 @@ class E2EDataset(Dataset):
             mr_data_str = ''.join(mr_data) 
             if mr_data_str in self.muti_data_y.keys(): 
                 self.muti_data_y[mr_data_str].append(self.ref[_index]) 
-            else: 
-                self.muti_data_y[mr_data_str] = [self.ref[_index]] 
+            else: self.muti_data_y[mr_data_str] = [self.ref[_index]] 
 
     """ 构造文本词典,由于结构化文本中的属性值大多会出现在参考文本中，为了更好地反映结构化文本属性值和参考文本的关系，这里只构建一个共享的词典，也就是结构化文本属性值和参考文本使用同一本词典进行编解码:
         counter: from collections import Counter()
@@ -271,8 +270,8 @@ class E2EDataset(Dataset):
     def __getitem__(self, index:int) -> tuple: 
         x = np.array(self.sequence_padding(self.tokenizer.encode(self.raw_data_x[index]), self.max_src_len)) 
         y = np.array(self.sequence_padding(self.tokenizer.encode(self.raw_data_y[index]), self.max_tgt_len)) 
-        if self.mode == 'train': 
-            return x, y 
+
+        if self.mode == 'train': return x, y 
         else: 
             lex = self.lexicalizations[index] 
             muti_y = self.muti_data_y[''.join(self.raw_data_x[index])] 

@@ -37,8 +37,7 @@ class Runner():
 
             self.test_set = _dl.E2EDataset(mode='test', max_src_len=cfg.max_src_len, max_tgt_len=cfg.max_tgt_len, field_tokenizer=self.train_set.field_tokenizer, tokenizer=self.train_set.tokenizer) 
 
-        except ValueError as e:
-            print("Error in Dataloader: ", repr(e))
+        except ValueError as e: print("Error in Dataloader: ", repr(e))
 
         self.train_loader = DataLoader(self.train_set, batch_size=cfg.batch_size, shuffle=True) 
 
@@ -64,6 +63,7 @@ class Runner():
 
         # 定义优化器 
         self.optimizer = optim.SGD(params=self.model.parameters(), lr=cfg.learning_rate) 
+        # self.optimizer = optim.Adam(params=self.model.parameters(), lr=cfg.learning_rate)
 
         # 定义学习率下降 
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200) 

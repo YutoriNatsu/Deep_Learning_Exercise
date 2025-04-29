@@ -1,13 +1,12 @@
-NAME_TOKEN = '[NAME]'
-NEAR_TOKEN = '[NEAR]'
-
-BOS_ID = 1
-EOS_ID = 2
-PAD_ID = 0
-
 from torch import device as torch_device
 class Config():
     def __init__(self):
+        self.BOS_ID = 1
+        self.EOS_ID = 2
+        self.PAD_ID = 0
+        self.NAME_TOKEN = '[NAME]'
+        self.NEAR_TOKEN = '[NEAR]'
+
         self.train_data = './e2e_dataset/trainset.csv'
         self.dev_data = './e2e_dataset/devset.csv'
         self.test_data = './e2e_dataset/testset.csv'
@@ -29,4 +28,4 @@ class Config():
         self.val_num = 1    # 进行验证的代数
         self.batch_size = 16    # 批数据大小
         self.learning_rate = 0.1    # 学习率
-        device = torch_device('cpu')    # 训练设备
+        self.device = torch_device('cpu')    # 训练设备

@@ -10,12 +10,12 @@ class Tokenizer:
 
         token_dict: 输入词到编号的映射词典
         _token_dict_rev: 反转键值对,方便查找编号对应的词
-        _token_dict_size: 词典大小
+        vocab_size: 词典大小
     """
     def __init__(self, token_dict):
         self.token_dict = token_dict 
-        self._token_dict_rev = {value: key for key, value in self.token_dict.items()} 
-        self._token_dict_size = len(self.token_dict) 
+        self.token_dict_rev = {value: key for key, value in self.token_dict.items()} 
+        self.vocab_size = len(self.token_dict) 
     
     """ 字符串编码: 将token映射为对应id,并在头尾加上特殊词[BOS]和[EOS]
         [BOS]: begin of string 标记字符串开头
@@ -134,7 +134,7 @@ class E2EDataset(Dataset):
         _map_string: 利用分隔符分割结构化文本中的键值对,利用"["提取键和值并构建字典 -> _map_objs = _key + _value -> _dict
         dict_list: 返回处理后得到的字典列表
     """
-    def str2dict(str_list:list) -> list: 
+    def str2dict(self, str_list:list) -> list: 
         dict_list = []
 
         _map_string = list(map(lambda x: x.split(', '), str_list))   
@@ -144,7 +144,7 @@ class E2EDataset(Dataset):
             for _item in _map_obj:
                 _key = _item.split('[')[0]
                 _value = _item.split('[')[1].replace(']', '')
-                dict[_key] = _value
+                _dict[_key] = _value
             
             dict_list.append(_dict)
         
@@ -223,8 +223,8 @@ class E2EDataset(Dataset):
             self.raw_data_y.append(ref_data) 
             self.lexicalizations.append(lex) 
             
-            # 多参考文本 
-            mr_data_str = ''.join(mr_data) 
+            # 多参考文本 Convert all items to string before joining
+            mr_data_str = ''.join(str(item) for item in mr_data)  
             if mr_data_str in self.muti_data_y.keys(): 
                 self.muti_data_y[mr_data_str].append(self.ref[_index]) 
             else: self.muti_data_y[mr_data_str] = [self.ref[_index]] 

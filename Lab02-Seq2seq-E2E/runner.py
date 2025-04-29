@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from sys import stdout
+import sys
 import numpy as np
 import tqdm
 import matplotlib.pyplot as plt
@@ -52,19 +52,20 @@ class Runner():
             self.dev_set = _dl.E2EDataset(mode='dev', max_src_len=cfg.max_src_len, max_tgt_len=cfg.max_tgt_len, field_tokenizer=self.train_set.field_tokenizer, tokenizer=self.train_set.tokenizer) 
 
             self.test_set = _dl.E2EDataset(mode='test', max_src_len=cfg.max_src_len, max_tgt_len=cfg.max_tgt_len, field_tokenizer=self.train_set.field_tokenizer, tokenizer=self.train_set.tokenizer) 
+            # 读取数据 
 
         except ValueError as e: print("Error in Dataloader: ", repr(e))
 
         self.train_loader = DataLoader(self.train_set, batch_size=cfg.batch_size, shuffle=True) 
+
+        if len(device)==0: self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        else: self.device = device
 
         self.model = Model.E2EModel(cfg, src_vocab_size=self.train_set.tokenizer.vocab_size, tgt_vocab_size=self.train_set.tokenizer.vocab_size).to(self.device)
 
         if (showExample==True):
             print("Example:")
             pass
-        
-        if len(device)==0: self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        else: self.device = device
 
         # 初始化batch大小，epoch数，损失函数，优化器等 
         self.batch_size = cfg.batch_size 
@@ -94,37 +95,37 @@ class Runner():
     """ 模型训练过程调用 train 方法，从迭代器中返回的批数据中提取结构化文本 src 和目标参考文本 ref，并移至设备上：首先利用优化器的 zero_grad 方法初始化梯度值，计算模型预测的损失。将结构化文本 src 和目标参考文本 ref 输入当前模型 model 中得到输出 logits，并根据损失函数计算输出和目标参考文本之间的 loss (注意维度)；
     梯度下降时，首先利用优化器的 zero_grad 方法初始化梯度值，再根据损失的 backward 方法反向传播求梯度，利用优化器的 step 方法更新参数。最后将当前损失和学习率添加到列表中用于后续绘图，利用学习率调整器的 step 方法更新学习率。
     """
-    def train(self, iterator, iter) -> None: 
+    def train(self, iterator, iter) -> None:
         _print_loss = 0.0
-        self.model.train() 
+        self.model.train()
 
-        with tqdm(total=len(iterator), desc='epoch{} [train]'.format(iter), file=stdout) as t: 
+        with tqdm.tqdm(total=len(iterator), desc=f'epoch{iter} [train]', file=sys.stdout) as t:
             for i, batch in enumerate(iterator):
-                src, tgt = batch # 移至设备上 
-                src = src.to(self.device).transpose(0, 1) 
+                src, tgt = batch  # 移至设备上
+                src = src.to(self.device).transpose(0, 1)
                 tgt = tgt.to(self.device).transpose(0, 1)
 
-                self.optimizer.zero_grad()  # 初始化梯度值 
-                
-                # Forward 
-                logits = self.model((src, tgt)) 
-                vocab_size = logits.size()[-1] 
-                logits = logits.contiguous().view(-1, vocab_size) 
-                targets = tgt.contiguous().view(-1, 1).squeeze(1) 
-                loss = self.criterion(logits, targets.long()) 
-                _print_loss += loss.data.item() 
+                self.optimizer.zero_grad()  # 初始化梯度值
 
-                loss.backward() # Backward 
-                self.optimizer.step() # Update
-                loss.backward() # Backward 
-                self.optimizer.step() # Update
+                # Forward
+                logits = self.model((src, tgt))
+                vocab_size = logits.size()[-1]
+                logits = logits.contiguous().view(-1, vocab_size)
+                targets = tgt.contiguous().view(-1, 1).squeeze(1)
+                loss = self.criterion(logits, targets.long())
+                _print_loss += loss.data.item()
 
-                t.set_postfix(loss=_print_loss / (i + 1), lr=self.scheduler.get_last_lr()[0]) 
-                t.update(1) 
+                loss.backward()  # Backward
+                self.optimizer.step()  # Update
 
-                self.loss_li.append(_print_loss / len(iterator)) 
-                self.lr_li.append(self.scheduler.get_last_lr()[0]) 
-                self.scheduler.step() 
+                t.set_postfix(loss=_print_loss / (i + 1), lr=self.scheduler.get_last_lr()[0])
+                t.update(1)
+
+                if i == len(iterator) - 1:  # Append loss and lr only once per epoch
+                    self.loss_li.append(_print_loss / len(iterator))
+                    self.lr_li.append(self.scheduler.get_last_lr()[0])
+
+                self.scheduler.step()
 
     """ 验证方法使用 BLEU-4 评价指标。调用 model.eval 切换为验证状态，用以关闭某些特定层的行为，如 Dropout、BatchNormal 等，在验证阶段固定这些层的参数，防止在 batch_size 较小时对测试结果的影响。total_num 统计验证集总数据数量，bleu 统计所有句子的 BLEU-4 分数和，最后取均值，当模型的 BLEU-4 大于记录的最优 BLEU-4 时，则将其保存在配置的模型保存路径。 由于验证阶段不需要梯度下降，使用 torch.no_grad，可以一定程度上提升运行速度并节省存储空间。
     """
@@ -135,7 +136,7 @@ class Runner():
         # 重置分数统计器 
         self.scorer.reset() 
         with torch.no_grad(): 
-            for data in tqdm(iterator, desc='{} [valid]'.format(" " * (5 + len(str(iter)))), file=stdout): 
+            for data in tqdm.tqdm(iterator, desc='{} [valid]'.format(" " * (5 + len(str(iter)))), file=sys.stdout): 
                 # 重置分数统计器 
                 src, tgt, lex, muti_tgt = data 
                 src = torch.as_tensor(src[:, np.newaxis]).to(self.device) 
@@ -207,7 +208,7 @@ class Runner():
     """ 运行该模型时首先实例化 Runner，然后调用 do() 方法进行训练和验证，根据传入的参数，每 VAL_NUM 次迭代进行一次评估。由于模型训练时间较长，因此默认使用 tqdm 来可视化显示运行进度，设置 output_log==True 可打印训练过程中的 lr、loss、score 和 runtime。
     """
     def do(self, save_path:str="", output_log = False) -> None:
-        try:
+        # try:
             _begin = time.time()
             for epoch in range(self.MAX_EPOCH): 
                 self.train(self.train_loader, epoch)
@@ -222,16 +223,14 @@ class Runner():
                     _begin = time.time()
             
             print("train success!")
-        except:
-            print("something wrong with trainning process")
-        return None
+        # except: print("something wrong with trainning process")
 
     """ 根据实验要求，模型训练完成后需要对测试集进行预测，并将预测结果保存为 txt 文件并提交。测试阶段与验证类似，将读取的 test_dataset 送入 model.predict，得到预测结果列表后利用词典解码成句子，按行写入文本。
     """
     def test(self, save_path:str="", output_log=False) -> None:
         self.model.eval() 
         with torch.no_grad(): 
-            for data in tqdm(self.test_set, desc='[test]', file=stdout): 
+            for data in tqdm.tqdm(self.test_set, desc='[test]', file=sys.stdout): 
                 src, tgt, lex, _ = data 
                 src = torch.as_tensor(src[:, np.newaxis]).to(self.device) 
                

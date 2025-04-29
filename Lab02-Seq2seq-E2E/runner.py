@@ -29,6 +29,22 @@ import time
     def test: 进行测试
 """
 class Runner():
+    """__init__ 初始化: 设置 Runner 类用于运行模型训练和验证。初始化 train/dev/test 数据集的加载器，并实例化网络模型，配置 device、scorer、criterion、optimizer。在本任务中使用的损失函数为负对数似然 NLLoss，将 PAD_ID 的权重设置为 0，即不考虑填充词的 loss；选择 SGD 作为模型的优化器，并设置 scheduler 使用退火方法更新学习率。
+
+    train_set: 加载 trainset.csv 并做预处理
+    dev_set: 加载 devset.csv 并做预处理
+    test_set: 加载 testset.csv 并做预处理
+    model: 实例化模型网络并移至 device 上
+        device: 训练设备 (cpu 或 cuda)
+        scorer: 分数评估采用自定义的 BLEUscore
+        criterion: 损失函数使用 NLLLoss
+        optimizer: 优化器采用 SGD
+        scheduler: 采用退火方法控制学习率下降
+    best_bleu: 记录最高 bleu 
+    loss_li: 记录历史 loss 
+    bleu_li: 记录历史 bleuscore
+    lr_li: 记录历史 learning rate
+    """
     def __init__(self, cfg, device='', showExample=False): 
         try:
             self.train_set = _dl.E2EDataset(mode='train', max_src_len=cfg.max_src_len, max_tgt_len=cfg.max_tgt_len)
@@ -75,6 +91,9 @@ class Runner():
         self.bleu_li = [] 
         self.lr_li = []
 
+    """ 模型训练过程调用 train 方法，从迭代器中返回的批数据中提取结构化文本 src 和目标参考文本 ref，并移至设备上：首先利用优化器的 zero_grad 方法初始化梯度值，计算模型预测的损失。将结构化文本 src 和目标参考文本 ref 输入当前模型 model 中得到输出 logits，并根据损失函数计算输出和目标参考文本之间的 loss (注意维度)；
+    梯度下降时，首先利用优化器的 zero_grad 方法初始化梯度值，再根据损失的 backward 方法反向传播求梯度，利用优化器的 step 方法更新参数。最后将当前损失和学习率添加到列表中用于后续绘图，利用学习率调整器的 step 方法更新学习率。
+    """
     def train(self, iterator, iter) -> None: 
         _print_loss = 0.0
         self.model.train() 
@@ -107,6 +126,8 @@ class Runner():
                 self.lr_li.append(self.scheduler.get_last_lr()[0]) 
                 self.scheduler.step() 
 
+    """ 验证方法使用 BLEU-4 评价指标。调用 model.eval 切换为验证状态，用以关闭某些特定层的行为，如 Dropout、BatchNormal 等，在验证阶段固定这些层的参数，防止在 batch_size 较小时对测试结果的影响。total_num 统计验证集总数据数量，bleu 统计所有句子的 BLEU-4 分数和，最后取均值，当模型的 BLEU-4 大于记录的最优 BLEU-4 时，则将其保存在配置的模型保存路径。 由于验证阶段不需要梯度下降，使用 torch.no_grad，可以一定程度上提升运行速度并节省存储空间。
+    """
     def evaluate(self, iterator, iter, save_path:str="") -> None: 
         self.model.eval() 
         bleu = 0.0 
@@ -133,6 +154,8 @@ class Runner():
                     torch.save(self.model, save_path) 
                     # print("model saved.") 
 
+    """ 训练过程中记录随 epoch 的学习率 lr、损失 loss、验证得到的 bleu-score，利用 pyplot 绘制模型训练的 loss/acc 变化图。
+    """
     def illust_trainning_curve(self, saveFig:str="") -> None:
         train_x = []
         valid_x = []
@@ -153,6 +176,8 @@ class Runner():
         plt.show()
         return None
 
+    """ 除了绘制训练过程的变化图外，本实验还可以将训练好的注意力模块用 heatmap 来进行可视化展示。首先加载训练好的模型，预测单句得到注意力矩阵，根据这一矩阵调用 seaborn 库中的 heatmap 方法进行绘图。此外根据词典和去词化的原词还原结构化文本和预测的输出，以此结果作为坐标轴的标签进行展示。
+    """
     def illust_heatmap(self, saveFig:str="") -> None:
         # 获得数据 
         _src, _tgt, _lex, _ = self.train_set[0] 
@@ -179,6 +204,8 @@ class Runner():
         plt.show() 
         return None
 
+    """ 运行该模型时首先实例化 Runner，然后调用 do() 方法进行训练和验证，根据传入的参数，每 VAL_NUM 次迭代进行一次评估。由于模型训练时间较长，因此默认使用 tqdm 来可视化显示运行进度，设置 output_log==True 可打印训练过程中的 lr、loss、score 和 runtime。
+    """
     def do(self, save_path:str="", output_log = False) -> None:
         try:
             _begin = time.time()
@@ -199,6 +226,8 @@ class Runner():
             print("something wrong with trainning process")
         return None
 
+    """ 根据实验要求，模型训练完成后需要对测试集进行预测，并将预测结果保存为 txt 文件并提交。测试阶段与验证类似，将读取的 test_dataset 送入 model.predict，得到预测结果列表后利用词典解码成句子，按行写入文本。
+    """
     def test(self, save_path:str="", output_log=False) -> None:
         self.model.eval() 
         with torch.no_grad(): 

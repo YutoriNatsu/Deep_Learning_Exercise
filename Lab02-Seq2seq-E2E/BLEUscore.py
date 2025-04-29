@@ -1,4 +1,5 @@
-""" 评价指标 BLEU-4 (参考来源: https://github.com/salesforce/WikiSQL):
+""" 评价指标 BLEU-4 (参考来源: https://github.com/salesforce/WikiSQL): 本实验中使用的评价指标为 BLEU-4，该指标通过 unigram 评估候选文本是否正确使用了关键数据中的单词，通过高阶的 n-gram 评估句子是否流畅。此外，BLEU 还引入了参数BP (Brevity Penalt) 惩罚长度过短的候选文本。本实验评价指标参考 WikiSQL 中提供的 BLEU 代码，使其能够直接被主函数调用并在验证环节进行评价。
+
     __init__: 初始化最大 gram 数量和大小写敏感性
     append: 统计不同 gram 的命中数量和候选长度
     compute_hits: 计算命中次数并累加
@@ -97,7 +98,7 @@ class BLEUScore:
             prec_log_sum += math.log(n_hits / n_len) 
         return bp * math.exp((1.0 / self.max_ngram) * prec_log_sum) 
 
-""" 调用示例
+""" 调用示例: 参考课件给出的计算示例，本实验在 BLEUscore.py 复现了这一运算过程，经验证结果正确 (BELU-2 score=0.860264827803306)
     1. 实例化 BLEUScore 类, 设置 max_ngram=2
     2.  Candidate: the cat sat on the mat
         Reference : the cat is on the mat 

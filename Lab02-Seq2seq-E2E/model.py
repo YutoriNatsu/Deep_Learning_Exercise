@@ -7,7 +7,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-""" 编码器 Encoder (MLP):
+""" 编码器 Encoder (MLP): 编码器模块普遍采用多层感知机 MLP，设置一个全连接层 Linear + ReLU 激活函数进行特征提取：
+
     input: 输入大小 input_size, 输出大小 hidden_size
     网络结构: 全连接层 Linear + ReLU 激活函数
 """
@@ -26,7 +27,9 @@ class Encoder(nn.Module):
         dec_hidden = torch.sum(outputs, 0) 
         return outputs, dec_hidden.unsqueeze(0)
 
-""" 解码器 Decoder (RNN-GRU):
+""" 解码器 Decoder (RNN-GRU): 解码器通常使用 RNN 来实现。对于本实验所要处理的结构化文本来说，数据之间存在间隔较大的依赖关系，因此采用了门控循环神经网络 GRU 来实现 Decoder。在 __init__ 中添加 nn.RGU 作为解码模块，此外加入注意力模块 attn_module 来关注输入序列特定部分的信息，进一步提升模型效果。
+GRU 的前馈连接结构根据注意力模块 attn_module 传递上一时刻的隐藏状态和编码器的输出，得到注意力权重 attn_weights。将这一权重与 encoder 的输出加权，然后再经过 GRU 单元进行解码，要注意矩阵计算时的维度 B x (prev_y_dim+(enc_dim * num_enc_directions))。得到 decoder 当前时刻的输出和隐藏状态后，再经过全连接层和 softmax 得到词的概率：
+
     input: RNN 输入大小 input_size, 隐藏大小 hidden_size, 最终解码输出大小 output_size, 词嵌入维度 embedding_dim, 编码器的输出大小 encoder_hidden_size
     网络结构: 门控循环神经网络 nn.GRU + 自定义注意力模块 Attention -> 注意力权重与输出向量加权组合
 """
@@ -54,7 +57,8 @@ class Decoder(nn.Module):
         # 返回最终输出、隐藏状态以及注意力权重 
         return dec_output, dec_hidden, attn_weights
     
-""" 注意力模块 Attention:
+""" 注意力模块 Attention: 在 Seq2Seq 任务中，通常采用 Bahdanau Attention 来实现注意力机制，具体内容在实验原理部分已经介绍过了。该模块包含三个 Linear 层 U、W、v (大小由 encoder 和 decoder 的维度决定)，以及一个 Tanh 层和 Softmax 层。Attention 模块的前馈结构根据模型论文 (https://arxiv.org/pdf/1409.0473) 提供的公式进行计算。先将 encoder 的输出传入线性层 U 进行加权求和，再将上一时刻的隐藏状态传入线性层 W 进行加权求和，经过 tanh 激活后再与 v 进行加权求和，难点在于矩阵维度的一致性：
+
     计算公式(Bahdanau Attention): a(s_{i-1},h_j)=v_a^T\tanh(W_as_{i-1}+U_ah_j)
 """
 class Attention(nn.Module): 
@@ -81,7 +85,8 @@ class Attention(nn.Module):
         attn_weights = self.softmax(attn_unnorm_scores)  # B x SL 
         return attn_weights 
 
-""" Seq2Seq 模型:
+""" Seq2Seq 模型: 最后根据前面定义的模型，完成 Seq2Seq 模型类。首先从批数据中解析得到 batch_x_var 和 batch_y_var，然后进行词嵌入 Embedding 和 Dropout，再使用encoder 对嵌入向量进行编码，最后通过 attention-decoder 对编码结果进行逐一解码得到输出。__init__ 中除了编解码器外还构建了词嵌入层，并通过 dropout 来控制过拟合。
+
     网络结构: Embedding + Dropout -> Encoder + Decoder
     predict: 模型推理 -> 在 decode 时对上一时刻的输出进行词嵌入然后进行解码得到输出、隐藏状态和注意力矩阵，选择最大的词概率对应的下标，即最大可能性的词编号，对词编号和注意力矩阵进行记录并将预测的当前时刻的词编号作为下一时刻的输入。最后，返回解码的结果和注意力矩阵。
 """
@@ -96,8 +101,8 @@ class E2EModel(nn.Module):
         # 构建词嵌入层 
         self.embedding_mat = nn.Embedding(src_vocab_size, cfg.embedding_dim, padding_idx=PAD_ID) 
         self.embedding_dropout_layer = nn.Dropout(cfg.embedding_dropout) 
-        # 构建编码器和解码器
 
+        # 构建编码器和解码器
         self.encoder = Encoder(input_size=cfg.encoder_input_size, 
                              hidden_size=cfg.encoder_hidden_size) 
         self.decoder = Decoder(input_size=cfg.decoder_input_size, 
@@ -105,7 +110,9 @@ class E2EModel(nn.Module):
                              output_size=tgt_vocab_size, 
                              embedding_dim=cfg.embedding_dim, 
                              encoder_hidden_size=cfg.encoder_hidden_size)
-        
+    
+    """ 考虑到本实验所用的数据集规模较小，且结构化文本的处理难度会更大一些，因此在训练时使用了 teaching forcing 机制进行学习，在预测下一时刻的输出和隐藏状态时，总是使用标准答案作为上一时刻的输出 (词嵌入)，这样基于标准答案的推理可以加速模型收敛的速度，最后得到解码的每个位置的词概率。
+    """    
     def forward(self, data): 
         batch_x_var, batch_y_var = data  # SL x B, TL x B 
         # 词嵌入 # SL x B x E 
@@ -128,6 +135,8 @@ class E2EModel(nn.Module):
             dec_input = batch_y_var[di]  # 下一输入是标准答案 
         return logits
     
+    """ 推理过程调用 predict 方法，输入只有结构化文本的数据，首先进行词嵌入和Dropout，再使用 encoder 对嵌入向量进行编码，然后使用 decoder 对编码结果进行逐一解码。在解码时，需要记录已经产生的结果长度，直到达到最大长度或者出现结束标记 EOS；选择最大的词概率对应的下标，即最大可能性的词编号，对词编号和注意力矩阵进行记录并将预测的当前时刻的词编号作为下一时刻的输入，最后返回解码的结果和注意力矩阵。
+    """
     def predict(self, input_var): 
         # 词嵌入 
         encoder_input_embedded = self.embedding_mat(input_var) 

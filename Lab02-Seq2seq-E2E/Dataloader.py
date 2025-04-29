@@ -4,7 +4,10 @@ NEAR_TOKEN = '[NEAR]'
 PAD_ID = 0
 
 class Tokenizer: 
-    """ 构建词到编号的映射编码器 Tokenizer:
+    """ 构建词到编号的映射编码器 Tokenizer: 定义一个 Tokenlizer 编码器，将单词映射到编号并构建词典：
+    Encode 方法将给定字符串映射为数字编号，对于字符串 token_string，遍历每个词，调用 token2id 得到对应的编号列表。另外，在编号序列头尾分别加上开始和结束的特殊词 [BOS] 和 [EOS]，对未收录的词，标记为 [UNK]；
+    Decode 方法将给定数字编号序列映射为字符串，对于编号列表 id_string，遍历每个编号，调用 id2token 得到对应的 token 列表。另外需要去掉 [BOS] 和 [EOS]，使用 join 返回解码的字符串。
+
         token_dict: 输入词到编号的映射词典
         _token_dict_rev: 反转键值对,方便查找编号对应的词
         _token_dict_size: 词典大小
@@ -56,7 +59,8 @@ import numpy as np
 from re import split as re_split
 from torch.utils.data import Dataset
 from collections import Counter
-""" 自定义 Dataloader (继承自 pytorch 的 Dataset 类):
+""" 自定义 Dataloader (继承自 pytorch 的 Dataset 类): 本实验所使用的 E2E 数据集包含 trainset、devset、testset 三个 csv 文件，样本比例为 8:1:1，无需再做数据集划分。train/dev 数据集包括两个字段：结构化文本 mr 和参考文本 ref，test 数据集只有一个 MR 字段。首先需要用 pandas 读取数据集，由于编写代码时采用了虚拟环境，因此需要用 os 转换一个绝对路径。
+
     __init__: 初始化构造函数
     __getitem__: 
     __len__:
@@ -146,7 +150,8 @@ class E2EDataset(Dataset):
         
         return dict_list 
     
-    """ 构造属性词典:
+    """ 构造属性词典: 得到字典形式的格式化文本后，利用 collections 的 Counter 类统计所有键的出现次数，根据词频对属性名表进行排序，从 0 开始编号，最后 zip 组合为映射词典。
+
         mr_key: 提取 str2dict 处理 mr 字段得到的字典列表中的键,并调用Counter()统计词频,对属性名列表进行排序
         counter: from collections import Counter()
         _tokens: 保留排序后的词列表，创建属性名到编号的映射字典(从0开始编号)
@@ -166,7 +171,8 @@ class E2EDataset(Dataset):
         self.field_tokenizer = dict(zip(_tokens, range(len(_tokens)))) 
         self.key_num = len(self.field_tokenizer)
     
-    """ 文本预处理,包括分词和去词化等操作:
+    """ 文本预处理,包括分词和去词化等操作: 数据预处理步骤包括分词、去词化和词形还原等。由于本实验所处理的是结构化文本，因此可以按照文本规则进行分词，并去除标点符号：为了去除餐馆名称、地点等噪声词对模型训练的影响，可以在预处理时将 'name' 和 'near' 字段替换成占位符。由于结构化文本不存在语态问题，因此不需要做词形还原。
+
         raw_data_x: 结构化文本数据(特征)
         raw_data_y: 参考文本数据(目标值)
         lexicalizations: 去词化的原词(编解码后的句子)
@@ -223,7 +229,8 @@ class E2EDataset(Dataset):
                 self.muti_data_y[mr_data_str].append(self.ref[_index]) 
             else: self.muti_data_y[mr_data_str] = [self.ref[_index]] 
 
-    """ 构造文本词典,由于结构化文本中的属性值大多会出现在参考文本中，为了更好地反映结构化文本属性值和参考文本的关系，这里只构建一个共享的词典，也就是结构化文本属性值和参考文本使用同一本词典进行编解码:
+    """ 构造文本词典: 由于结构化文本中的属性值大多会出现在参考文本中，因此为了更好地反映结构化文本属性值和参考文本的关系，结构化文本属性值和参考文本使用同一本词典进行编解码。首先使用 Counter 对属性值的文本和参考文本的词进行统计，按词频排序后将特殊词加入到词表，从 0 开始编号并创建映射词典，使用该词典建立 Tokenlizer。
+    
         counter: from collections import Counter()
         _tokens: 对属性值的文本和参考文本的词按照词频统计排序,并保留词列表(同属性词典)
 
@@ -244,7 +251,8 @@ class E2EDataset(Dataset):
         token_id_dict = dict(zip(_tokens, range(len(_tokens)))) 
         self.tokenizer = Tokenizer(token_id_dict) 
 
-    """ 序列填充和截断,对长度不合法的句子进行归一化
+    """ 序列填充和截断,对长度不合法的句子进行归一化: 接下来对序列进行归一化处理，对于长度不足或超过预设的句子，需要进行填充或截断。填充词 padding 默认为 None，若不输入则采用填充词 [PAD] 的 ID=0 进行填充。
+
         string: 输入句子
         max_len: 最大长度
         padding: 填充词,默认为[PAD]的id
@@ -261,7 +269,8 @@ class E2EDataset(Dataset):
         else: res = string[:max_len] 
         return res
     
-    """ 重写 __getitem__ 函数
+    """ 重写 __getitem__ 函数: __getitem__ 接受序号 index，得到结构化文本和目标参考文本，使用词典进行编码并进行序列填充得到 x 和 y。对于 train mode，直接 return x, y；对于 dev/test mode，需要从 lexicalizations 列表中读取当前文本中被去词化的词 lex 以及从 muti_data_y 字典中读取当前结构化文本的多参考文本列表 muti_y，并返回四个参数。
+    
         index: 读取数据的输入序号,得到结构化文本和目标参考文本
         x,y: 经过编码并填充后得到的文本
         lex,muti_y: 如果是mode==dev|test,则要返回当前文本去词化后的词 lex 以及多参考文本列表 muti_data_y

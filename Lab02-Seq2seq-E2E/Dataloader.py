@@ -34,7 +34,7 @@ class Tokenizer:
     def token2id(self, token:str) -> int:
         return self.token_dict.get(token, self.token_dict['[UNK]']) # 未找到时返回[UNK]
     def id2token(self, token_id:int) -> str: 
-        return self._token_dict_rev[token_id]
+        return self.token_dict_rev[token_id]
     
     def encode(self, token_string:list) -> list: 
         id_string = [self.token2id('[BOS]')]
@@ -88,10 +88,10 @@ class E2EDataset(Dataset):
         if path == "": 
             # 由于编写代码时采用了虚拟环境, 因此需要用 os 转换一个绝对路径
             import os
-            path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "\\e2e_dataset"
-            if mode == 'train': path = path + "\\trainset.csv"
-            if mode == 'dev': path = path + "\\devset.csv"
-            if mode == 'test': path = path + "\\testset.csv"
+            path = os.path.abspath(os.path.join(os.getcwd(), '.')) + "/e2e_dataset"
+            if mode == 'train': path = path + "/trainset.csv"
+            if mode == 'dev': path = path + "/devset.csv"
+            if mode == 'test': path = path + "/testset.csv"
         
         if mode == 'train':
             _df = pd.read_csv(path) 
@@ -283,7 +283,7 @@ class E2EDataset(Dataset):
         if self.mode == 'train': return x, y 
         else: 
             lex = self.lexicalizations[index] 
-            muti_y = self.muti_data_y[''.join(self.raw_data_x[index])] 
+            muti_y = self.muti_data_y[''.join(str(item) for item in self.raw_data_x[index])] 
             return x, y, lex, muti_y
 
     """ 重写 __len__ 函数,返回数据集的大小

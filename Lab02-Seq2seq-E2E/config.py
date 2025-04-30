@@ -1,4 +1,4 @@
-from torch import device as torch_device
+import torch
 class Config():
     def __init__(self):
         self.BOS_ID = 1
@@ -12,7 +12,7 @@ class Config():
         self.test_data = './e2e_dataset/testset.csv'
 
         self.model_save_path = './model.pkl'
-        self.result_save_path = './result.txt'
+        self.result_save_path = './results_1120222198_张英祺.txt'
 
         self.max_src_len = 80   # 最大结构文本长度
         self.max_tgt_len = 80   # 最大参考文本长度
@@ -25,7 +25,7 @@ class Config():
         self.decoder_hidden_size = 512  # 解码器隐藏单元数
 
         self.n_epochs = 30  # 训练迭代次数
-        self.val_num = 1    # 进行验证的代数
-        self.batch_size = 16    # 批数据大小
+        self.val_num = 5    # 进行验证的代数
+        self.batch_size = 128    # 批数据大小
         self.learning_rate = 0.1    # 学习率
-        self.device = torch_device('cpu')    # 训练设备
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

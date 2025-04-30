@@ -1,4 +1,5 @@
-import BLEUscore as _bleu
+# import BLEUscore as _bleu
+from nltk.translate.bleu_score import sentence_bleu
 import Dataloader as _dl
 
 # import config
@@ -74,7 +75,7 @@ class Runner():
         self.weight[cfg.PAD_ID] = 0
 
         # 定义分数评估 
-        self.scorer = _bleu.BLEUScore(max_ngram=4) 
+        # self.scorer = _bleu.BLEUScore(max_ngram=4) 
 
         # 定义损失函数 
         self.criterion = nn.NLLLoss(self.weight, size_average=True).to(self.device) 
@@ -84,7 +85,9 @@ class Runner():
         # self.optimizer = optim.Adam(params=self.model.parameters(), lr=cfg.learning_rate)
 
         # 定义学习率下降 
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200) 
+        # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
+        # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=cfg.n_epochs*(len(self.train_set)//cfg.batch_size+1)) 
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9)
         self.MAX_EPOCH = cfg.n_epochs 
         self.VAL_NUM = cfg.val_num 
 
@@ -101,16 +104,14 @@ class Runner():
         _print_loss = 0.0
         self.model.train()
 
-        embedding_mat = nn.Embedding(num_embeddings=3300, embedding_dim = 256, padding_idx=0) 
-
+        # embedding_mat = nn.Embedding(num_embeddings=3300, embedding_dim = 256, padding_idx=0) 
         with tqdm.tqdm(total=len(iterator), desc=f'epoch{iter} [train]', file=sys.stdout) as t:
             for i, batch in enumerate(iterator):
                 src, tgt = batch  # 移至设备上
                 src = src.to(self.device).transpose(0, 1)
                 tgt = tgt.to(self.device).transpose(0, 1)
 
-                embedding = embedding_mat(src)
-
+                # embedding = embedding_mat(src)
                 self.optimizer.zero_grad()  # 初始化梯度值
 
                 # Forward
@@ -127,20 +128,21 @@ class Runner():
                 t.set_postfix(loss=_print_loss / (i + 1), lr=self.scheduler.get_last_lr()[0])
                 t.update(1)
 
-                if i == len(iterator) - 1:  # Append loss and lr only once per epoch
-                    self.loss_li.append(_print_loss / len(iterator))
-                    self.lr_li.append(self.scheduler.get_last_lr()[0])
+                # if i == len(iterator) - 1:  # Append loss and lr only once per epoch
+            self.loss_li.append(_print_loss / len(iterator))
+            self.lr_li.append(self.scheduler.get_last_lr()[0])
 
-                self.scheduler.step()
+            self.scheduler.step()
 
     """ 验证方法使用 BLEU-4 评价指标。调用 model.eval 切换为验证状态，用以关闭某些特定层的行为，如 Dropout、BatchNormal 等，在验证阶段固定这些层的参数，防止在 batch_size 较小时对测试结果的影响。total_num 统计验证集总数据数量，bleu 统计所有句子的 BLEU-4 分数和，最后取均值，当模型的 BLEU-4 大于记录的最优 BLEU-4 时，则将其保存在配置的模型保存路径。 由于验证阶段不需要梯度下降，使用 torch.no_grad，可以一定程度上提升运行速度并节省存储空间。
     """
+
     def evaluate(self, iterator, iter, save_path:str="") -> None: 
         self.model.eval() 
-        bleu = 0.0 
+        print_bleu = []
         total_num = 0 
         # 重置分数统计器 
-        self.scorer.reset() 
+        # self.scorer.reset() 
         with torch.no_grad(): 
             for data in tqdm.tqdm(iterator, desc='{} [valid]'.format(" " * (5 + len(str(iter)))), file=sys.stdout): 
                 # 重置分数统计器 
@@ -149,11 +151,14 @@ class Runner():
                 sentence, attention = self.model.predict(src) 
                 # 解码句子 
                 sentence = self.train_set.tokenizer.decode(sentence).replace('[NAME]', lex[0]).replace('[NEAR]', lex[1]) 
-                self.scorer.append(sentence, muti_tgt) 
-            
-            bleu = self.scorer.score()
+                # self.scorer.append(sentence, muti_tgt)
+                print_bleu.append(sentence_bleu(muti_tgt, sentence, weights=(0, 0, 0, 1)))
+
+            # bleu = self.scorer.score()
+            bleu = sum(print_bleu)/len(print_bleu)
             self.bleu_li.append(bleu) 
-            # print("BLEU SCORE: {:.4f}".format(bleu)) 
+            print("BLEU SCORE: {:.4f}".format(bleu)) 
+
             if bleu > self.best_bleu: 
                 self.best_bleu = bleu 
                 
@@ -166,7 +171,7 @@ class Runner():
     def illust_trainning_curve(self, saveFig:str="") -> None:
         train_x = []
         valid_x = []
-        for i in range(1,self.MAX_EPOCH+1):
+        for i in range(1, self.MAX_EPOCH+1):
             train_x.append(i)
             if i % self.VAL_NUM == 0: valid_x.append(i)
 
@@ -187,17 +192,17 @@ class Runner():
     """
     def illust_heatmap(self, saveFig:str="") -> None:
         # 获得数据 
-        _src, _tgt, _lex, _ = self.train_set[0] 
+        _src, _tgt, _lex, _ = self.dev_set[0] 
         _src = torch.as_tensor(_src[np.newaxis, :]).to(self.device).transpose(0, 1) 
         sentence, attention = self.model.predict(_src)
 
         # 还原文本 
-        src_txt = list(map(lambda x: self.train_set.tokenizer.id_to_token(x), _src.flatten().cpu().numpy().tolist()[:10])) 
+        src_txt = list(map(lambda x: self.dev_set.tokenizer.id_to_token(x), _src.flatten().cpu().numpy().tolist()[:10])) 
         for i in range(len(src_txt)): 
             if src_txt[i] == '[NAME]': src_txt[i] = _lex[0] 
             elif src_txt[i] == '[NEAR]': src_txt[i] = _lex[1] 
 
-        sentence_txt = list(map(lambda x: self.train_set.tokenizer.id_to_token(x), sentence)) 
+        sentence_txt = list(map(lambda x: self.dev_set.tokenizer.id_to_token(x), sentence)) 
         for i in range(len(src_txt)): 
             if sentence_txt[i] == '[NAME]': sentence_txt[i] = _lex[0] 
             elif sentence_txt[i] == '[NEAR]': sentence_txt[i] = _lex[1] 
@@ -216,7 +221,7 @@ class Runner():
     def do(self, save_path:str="", output_log = False) -> None:
         # try:
             _begin = time.time()
-            for epoch in range(self.MAX_EPOCH): 
+            for epoch in range(1, self.MAX_EPOCH+1): 
                 self.train(self.train_loader, epoch)
 
                 if epoch % self.VAL_NUM == 0: 

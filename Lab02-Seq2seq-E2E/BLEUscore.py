@@ -8,6 +8,8 @@
 import math
 from re import split as re_split
 from collections import defaultdict
+from nltk.translate.bleu_score import sentence_bleu
+
 class BLEUScore: 
     TINY = 1e-15 
     SMALL = 1e-9 
@@ -48,7 +50,7 @@ class BLEUScore:
         # 记录参考文本长度 
         self.ref_len += len(closest_ref)
 
-    def tokenize(input_sent):
+    def tokenize(self, input_sent):
         return list(map(lambda x: re_split(r"([.,!?\"':;)(])", x)[0], input_sent.split()))
     
     """ 统计命中次数: 调用 get_ngram_counts 得到 ngram 的句子列表, 遍历句子列表统计预测句子和参考文本的命中次数
@@ -111,3 +113,4 @@ if __name__ == '__main__':
     target = ['the cat is on the mat '] 
     scorer.append(sentence, target) 
     print(scorer.score()) 
+    print(sentence_bleu(target, sentence, weights=(0, 1, 0, 0)))

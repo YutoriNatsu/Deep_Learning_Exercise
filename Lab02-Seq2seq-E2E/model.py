@@ -1,7 +1,5 @@
-# import config
-BOS_ID = -1
-EOS_ID = -2
-PAD_ID = 0
+import config
+cfg=config.Config()
 
 import torch
 import torch.nn as nn
@@ -40,7 +38,7 @@ class Decoder(nn.Module):
         self.attn_module = Attention(encoder_hidden_size, hidden_size) 
         self.W_combine = nn.Linear(embedding_dim + encoder_hidden_size, hidden_size) 
         self.W_out = nn.Linear(hidden_size, output_size) 
-        self.log_softmax = nn.LogSoftmax() 
+        self.log_softmax = nn.LogSoftmax(dim=-1) 
 
     def forward(self, prev_y_batch, prev_h_batch, encoder_outputs_batch): 
         attn_weights = self.attn_module(prev_h_batch, encoder_outputs_batch)  # B x SL 
@@ -73,7 +71,7 @@ class Attention(nn.Module):
         self.W = nn.Linear(self.s_dim, self.a_dim) 
         self.v = nn.Linear(self.a_dim, 1) 
         self.tanh = nn.Tanh() 
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim=-1)
     
     def forward(self, prev_h_batch, enc_outputs): 
         src_seq_len, batch_size, enc_dim = enc_outputs.size() 
@@ -99,7 +97,7 @@ class E2EModel(nn.Module):
         self.tgt_vocab_size = tgt_vocab_size 
         
         # 构建词嵌入层 
-        self.embedding_mat = nn.Embedding(src_vocab_size, cfg.embedding_dim, padding_idx=PAD_ID) 
+        self.embedding_mat = nn.Embedding(num_embeddings=tgt_vocab_size, embedding_dim = cfg.embedding_dim, padding_idx=cfg.PAD_ID) 
         self.embedding_dropout_layer = nn.Dropout(cfg.embedding_dropout) 
 
         # 构建编码器和解码器
@@ -124,7 +122,7 @@ class E2EModel(nn.Module):
         dec_len = batch_y_var.size()[0] 
         batch_size = batch_y_var.size()[1] 
         dec_hidden = encoder_hidden 
-        dec_input = Variable(torch.LongTensor([BOS_ID] * batch_size)).to(self.device) 
+        dec_input = Variable(torch.LongTensor([cfg.BOS_ID] * batch_size)).to(self.device) 
         logits = Variable(torch.zeros(dec_len, batch_size, self.tgt_vocab_size)).to(self.device) 
         # 采用Teacher forcing机制，输入总是标准答案 
         for di in range(dec_len): # 上一输出的词嵌入，B x E 
@@ -144,13 +142,13 @@ class E2EModel(nn.Module):
         encoder_outputs, encoder_hidden = self.encoder(encoder_input_embedded) 
         # 解码 
         dec_ids, attn_w = [], [] 
-        curr_token_id = BOS_ID 
+        curr_token_id = cfg.BOS_ID 
         curr_dec_idx = 0 
         dec_input_var = Variable(torch.LongTensor([curr_token_id])) 
         dec_input_var = dec_input_var.to(self.device) 
         dec_hidden = encoder_hidden[:1]  # 1 x B x enc_dim 
         # 直到EOS或达到最大长度 
-        while curr_token_id != EOS_ID and curr_dec_idx <= self.cfg.max_tgt_len: 
+        while curr_token_id != cfg.EOS_ID and curr_dec_idx <= self.cfg.max_tgt_len: 
             prev_y = self.embedding_mat(dec_input_var)  # 上一输出的词嵌入，B x E 
             # 解码 
             decoder_output, dec_hidden, decoder_attention = self.decoder(prev_y, dec_hidden, encoder_outputs) 

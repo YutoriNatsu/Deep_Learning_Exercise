@@ -54,6 +54,7 @@ class Runner():
             self.test_set = _dl.E2EDataset(mode='test', max_src_len=cfg.max_src_len, max_tgt_len=cfg.max_tgt_len, field_tokenizer=self.train_set.field_tokenizer, tokenizer=self.train_set.tokenizer) 
             # 读取数据 
 
+            
         except ValueError as e: print("Error in Dataloader: ", repr(e))
 
         self.train_loader = DataLoader(self.train_set, batch_size=cfg.batch_size, shuffle=True) 
@@ -95,15 +96,20 @@ class Runner():
     """ 模型训练过程调用 train 方法，从迭代器中返回的批数据中提取结构化文本 src 和目标参考文本 ref，并移至设备上：首先利用优化器的 zero_grad 方法初始化梯度值，计算模型预测的损失。将结构化文本 src 和目标参考文本 ref 输入当前模型 model 中得到输出 logits，并根据损失函数计算输出和目标参考文本之间的 loss (注意维度)；
     梯度下降时，首先利用优化器的 zero_grad 方法初始化梯度值，再根据损失的 backward 方法反向传播求梯度，利用优化器的 step 方法更新参数。最后将当前损失和学习率添加到列表中用于后续绘图，利用学习率调整器的 step 方法更新学习率。
     """
+
     def train(self, iterator, iter) -> None:
         _print_loss = 0.0
         self.model.train()
+
+        embedding_mat = nn.Embedding(num_embeddings=3300, embedding_dim = 256, padding_idx=0) 
 
         with tqdm.tqdm(total=len(iterator), desc=f'epoch{iter} [train]', file=sys.stdout) as t:
             for i, batch in enumerate(iterator):
                 src, tgt = batch  # 移至设备上
                 src = src.to(self.device).transpose(0, 1)
                 tgt = tgt.to(self.device).transpose(0, 1)
+
+                embedding = embedding_mat(src)
 
                 self.optimizer.zero_grad()  # 初始化梯度值
 
@@ -244,3 +250,6 @@ class Runner():
         
         print('Finished Testing!')
         return None
+    
+if __name__ == 'main':
+        run = Runner().do('./model.pkl')

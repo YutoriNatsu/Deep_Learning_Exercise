@@ -8,7 +8,7 @@
 import math
 from re import split as re_split
 from collections import defaultdict
-from nltk.translate.bleu_score import sentence_bleu
+# from nltk.translate.bleu_score import sentence_bleu
 
 class BLEUScore: 
     TINY = 1e-15 
@@ -97,7 +97,7 @@ class BLEUScore:
             n_hits = max(float(n_hits), self.TINY)               
             n_len = max(float(n_len), self.SMALL) 
             # 计算∑logPn=∑log(n_hits/n_len) 
-            prec_log_sum += math.log(n_hits / n_len) 
+            prec_log_sum += math.log10(n_hits / n_len) 
         return bp * math.exp((1.0 / self.max_ngram) * prec_log_sum) 
 
 """ 调用示例: 参考课件给出的计算示例，本实验在 BLEUscore.py 复现了这一运算过程，经验证结果正确 (BELU-2 score=0.860264827803306)
@@ -113,4 +113,4 @@ if __name__ == '__main__':
     target = ['the cat is on the mat '] 
     scorer.append(sentence, target) 
     print(scorer.score()) 
-    print(sentence_bleu(target, sentence, weights=(0, 1, 0, 0)))
+    # print(sentence_bleu(target, sentence, weights=(0, 1, 0, 0)))

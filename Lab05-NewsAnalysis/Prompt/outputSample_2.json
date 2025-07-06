@@ -1,0 +1,8 @@
+{
+    "subject": "欧盟委员会",
+    "object": "AI系统",
+    "action": "强制审查",
+    "entity_triplet": "欧盟委员会,强制审查,AI系统",
+    "authoritative_info": "欧盟委员会: 人工智能法案草案, 欧洲议会: 数字服务法案（2023）",
+    "data_evidence": "世界银行: 全球AI市场规模达1200亿美元"
+}

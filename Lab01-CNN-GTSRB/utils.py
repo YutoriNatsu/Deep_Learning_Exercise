@@ -170,7 +170,7 @@ def loadTestData_Roi(image_size:tuple=(28,28), showExample=False):
 
 def predict(model, test, showExample=False):
     # 将预测结果写入txt文件中
-    with open("predict_labels_1120222198_张英祺.txt", 'w') as f:
+    with open("predict_labels.txt", 'w') as f:
         with torch.no_grad():
             out = model(test)
             _, pred = torch.max(out.data, 1)

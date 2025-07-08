@@ -12,7 +12,7 @@ class Config():
         self.test_data = './e2e_dataset/testset.csv'
 
         self.model_save_path = './model.pkl'
-        self.result_save_path = './results_1120222198_张英祺.txt'
+        self.result_save_path = './results.txt'
 
         self.max_src_len = 80   # 最大结构文本长度
         self.max_tgt_len = 80   # 最大参考文本长度
